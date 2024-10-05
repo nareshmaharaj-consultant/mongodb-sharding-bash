@@ -1,0 +1,93 @@
+NAME=$1
+PORT=$2
+DIR=~/data/$NAME
+NODES=$3
+USAGE="\nUsage:  mongo-replicaset-create {name} {port} {numNodes} { Optional:[ --shardsvr, --configsvr ] }\nSet env variable \$HOST for all nodes to use this domain name."
+SLEEPTIME=8
+CONFIGSVR=""
+SHARDSVR=""
+GIVEN_HOSTNAME=localhost
+
+if [ -z "$HOST" ]
+then
+      echo "\$HOST not set using localhost"
+else
+      GIVEN_HOSTNAME=$HOST
+fi
+
+if [ "$1" == "-h" ]; then
+  echo -e $USAGE
+  exit 0
+fi
+
+if [ -z "$1" ]
+  then
+    echo -e "No NAME argument supplied $USAGE"
+    exit 0
+fi
+
+if [ -z "$2" ]
+  then
+    echo -e "No PORT argument supplied $USAGE"
+    exit 0
+fi
+
+if [ -z "$3" ]
+  then
+    echo -e "Number of NODES  argument supplied $USAGE"
+    exit 0
+fi
+
+# idiomatic parameter and option handling in sh
+while test $# -gt 0
+do
+    case "$4" in
+        --shardsvr) echo "Using option --shardsvr"
+	    SHARDSVR="--shardsvr"
+            ;;
+        --configsvr) echo "Using option --configsvr"
+	    CONFIGSVR="--configsvr"
+            ;;
+        --*) echo "bad option $1"
+            ;;
+    esac
+    shift
+done
+
+rm -fr $DIR
+mkdir -p $DIR
+
+COUNTER=0
+  until [  $COUNTER -ge $NODES ]; do
+    LOC=$DIR/$COUNTER
+    mkdir -p $LOC
+    PC=$(($PORT+$COUNTER))
+    echo "[ ++ Executing:  mongod --port $PC --fork --dbpath $LOC --logpath $LOC/log.out -replSet $NAME $CONFIGSVR $SHARDSVR ]"
+    mongod --port $PC --fork --bind_ip localhost,$GIVEN_HOSTNAME --dbpath $LOC --logpath $LOC/log.out --replSet $NAME $CONFIGSVR $SHARDSVR
+    let COUNTER+=1
+  done
+
+echo "Sleeping for $SLEEPTIME seconds"
+sleep $SLEEPTIME
+
+echo "[ ++ Executing:  mongosh --port $PORT -eval \"rs.initiate()\" ]"
+mongosh --port $PORT -eval "rs.initiate()"
+sleep $SLEEPTIME
+
+COUNTER=1
+  until [  $COUNTER -ge $NODES ]; do
+    PC=$(($PORT+$COUNTER))
+    if [ $COUNTER -gt 6 ]; then
+	echo "[ ++ Executing: mongosh --port $PORT -eval \"rs.add({host: '$GIVEN_HOSTNAME:$PC', priority:0, votes:0})\" ]"
+	mongosh --port $PORT -eval "rs.add({host: '$GIVEN_HOSTNAME:$PC', priority:0, votes:0})"
+    else
+    	echo "[ ++ Executing:  mongosh --port $PORT -eval \"rs.add('$GIVEN_HOSTNAME:$PC')\" ]"
+    	mongosh --port $PORT -eval "rs.add('$GIVEN_HOSTNAME:$PC')"
+    fi
+    let COUNTER+=1
+  done
+
+sleep $SLEEPTIME
+mongosh --port $PORT -eval "rs.status()"
+
+#ps -elf | grep mongosh | egrep -v ttys

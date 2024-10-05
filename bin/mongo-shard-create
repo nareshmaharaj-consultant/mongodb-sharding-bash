@@ -1,0 +1,85 @@
+PORT=$1
+SHARDS=$2
+LISTNAMES=$3
+DIR=~/data/mongos/
+USAGE="Usage:  mongo-shard-create {port} {numShards} { shardName1,shardName2,..}"
+GIVEN_HOSTNAME=localhost
+SLEEPTIME=1
+
+if [ -z "$HOST" ]
+then
+      echo "\$HOST is empty but is optional - will use localhost"
+else
+      GIVEN_HOSTNAME=$HOST
+fi
+
+
+if [ -z "$1" ]
+  then
+    echo "No PORT argument supplied - $USAGE"
+    exit 0
+fi
+
+if [ -z "$2" ]
+  then
+    echo "Number of Shards required - $USAGE"
+    exit 0
+fi
+
+if [ -z "$3" ]
+  then
+    echo "Name of each shard csv required - $USAGE"
+    exit 0
+fi
+
+# Split the names for each RS
+rs_name_arr=($(echo "$3" | sed "s/ //g" | tr ',' '\n'))
+count=${#rs_name_arr[@]}
+if [ $count -lt $SHARDS ]
+  then
+    echo "Shard names(s) count does not match number of Shards required - $USAGE"
+    exit 0
+fi
+
+echo "##########################################################################################################"
+echo "######################################### Creating Replica Sets ##########################################"
+echo "##########################################################################################################"
+COUNTER=1
+  until [  $COUNTER -gt $SHARDS ]; do
+  name=${rs_name_arr[$COUNTER-1]}
+    PC=$(($PORT+17+1000*$COUNTER))
+    mongo-replicaset-create $name $PC 3 --shardsvr
+    let COUNTER+=1
+  done
+
+echo "##########################################################################################################"
+echo "######################################### Creating Config Sets ###########################################"
+echo "##########################################################################################################"
+# Config Servers
+PC=$(($PORT+17+$SHARDS*1000+1000))
+mongo-replicaset-create csrs $PC 3 --configsvr
+
+echo " *** Adding user: 'admin', pwd: 'password' to Config Server - please change password *** "
+CSRS_HOSTS="csrs/$GIVEN_HOSTNAME:$PC,$GIVEN_HOSTNAME:$(($PC+1)),$GIVEN_HOSTNAME:$(($PC+2))"
+mongosh --host $CSRS_HOSTS --eval "db.getSiblingDB('admin').createUser({ user: 'admin', pwd: 'password', roles: [ {role: 'root', db: 'admin'} ] })"
+
+
+echo "##########################################################################################################"
+echo "######################################### Creating mongos #### ###########################################"
+echo "##########################################################################################################"
+LOG_DIR_MONGOS=~/data/mongos/
+mkdir -p $LOG_DIR_MONGOS
+echo "[ ++ Executing:  mongos --port $(($PORT+17)) --bind_ip_all --fork --logpath $LOG_DIR_MONGOS/mongos.log --configdb $CSRS_HOSTS ]"
+mongos --port $(($PORT+17)) --bind_ip_all --fork --logpath $LOG_DIR_MONGOS/mongos.log --configdb $CSRS_HOSTS
+
+COUNTER=1
+  until [  $COUNTER -gt $SHARDS ]; do
+  name=${rs_name_arr[$COUNTER-1]}
+    PC=$(($PORT+17+1000*$COUNTER))
+    echo "[ ++ Executing: mongosh --port $(($PORT+17)) --eval \"sh.addShard('$name/$GIVEN_HOSTNAME:$PC')\" ]"
+    mongosh --port $(($PORT+17)) --eval "sh.addShard('$name/$GIVEN_HOSTNAME:$PC')"
+    let COUNTER+=1
+  done
+
+sleep 5
+mongosh --port $(($PORT+17)) --eval "sh.status()"

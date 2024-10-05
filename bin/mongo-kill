@@ -1,0 +1,1 @@
+kill `ps -elf | grep mongo | awk '{print $2}' | tr '\n' ' ' | awk '{$1=$1};1'` > /dev/null 2>&1
