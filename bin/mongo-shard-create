@@ -57,7 +57,8 @@ echo "##########################################################################
 echo "######################################### Creating Config Sets ###########################################"
 echo "##########################################################################################################"
 # Config Servers
-PC=$(($PORT+17+$SHARDS*1000+1000))
+#PC=$(($PORT+17+$SHARDS*1000+1000))
+PC=$(($PORT+$SHARDS*1000+1000))
 mongo-replicaset-create csrs $PC 3 --configsvr
 
 echo " *** Adding user: 'admin', pwd: 'password' to Config Server - please change password *** "
