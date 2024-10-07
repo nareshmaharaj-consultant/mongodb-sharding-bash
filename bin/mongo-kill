@@ -1,1 +1,5 @@
 kill `ps -elf | grep mongo | awk '{print $2}' | tr '\n' ' ' | awk '{$1=$1};1'` > /dev/null 2>&1
+while [ `ps -elf | grep mongo | wc | awk '{print $1}'` -gt 1 ];do 
+  echo "mongo[ds] processes remaining: `ps -elf | grep mongo | wc | awk '{print $1}'`";
+  sleep 2;
+done

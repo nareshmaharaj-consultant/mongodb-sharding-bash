@@ -47,7 +47,8 @@ echo "##########################################################################
 COUNTER=1
   until [  $COUNTER -gt $SHARDS ]; do
   name=${rs_name_arr[$COUNTER-1]}
-    PC=$(($PORT+17+1000*$COUNTER))
+    PC=$(($PORT+1000*$COUNTER))
+    #PC=$(($PORT+17+1000*$COUNTER))
     mongo-replicaset-create $name $PC 3 --shardsvr
     let COUNTER+=1
   done
@@ -69,17 +70,23 @@ echo "######################################### Creating mongos #### ###########
 echo "##########################################################################################################"
 LOG_DIR_MONGOS=~/data/mongos/
 mkdir -p $LOG_DIR_MONGOS
-echo "[ ++ Executing:  mongos --port $(($PORT+17)) --bind_ip_all --fork --logpath $LOG_DIR_MONGOS/mongos.log --configdb $CSRS_HOSTS ]"
-mongos --port $(($PORT+17)) --bind_ip_all --fork --logpath $LOG_DIR_MONGOS/mongos.log --configdb $CSRS_HOSTS
+#echo "[ ++ Executing:  mongos --port $(($PORT+17)) --bind_ip_all --fork --logpath $LOG_DIR_MONGOS/mongos.log --configdb $CSRS_HOSTS ]"
+#mongos --port $(($PORT+17)) --bind_ip_all --fork --logpath $LOG_DIR_MONGOS/mongos.log --configdb $CSRS_HOSTS
+echo "[ ++ Executing:  mongos --port $(($PORT)) --bind_ip_all --fork --logpath $LOG_DIR_MONGOS/mongos.log --configdb $CSRS_HOSTS ]"
+mongos --port $(($PORT)) --bind_ip_all --fork --logpath $LOG_DIR_MONGOS/mongos.log --configdb $CSRS_HOSTS
 
 COUNTER=1
   until [  $COUNTER -gt $SHARDS ]; do
   name=${rs_name_arr[$COUNTER-1]}
-    PC=$(($PORT+17+1000*$COUNTER))
-    echo "[ ++ Executing: mongosh --port $(($PORT+17)) --eval \"sh.addShard('$name/$GIVEN_HOSTNAME:$PC')\" ]"
-    mongosh --port $(($PORT+17)) --eval "sh.addShard('$name/$GIVEN_HOSTNAME:$PC')"
+    #PC=$(($PORT+17+1000*$COUNTER))
+    #echo "[ ++ Executing: mongosh --port $(($PORT+17)) --eval \"sh.addShard('$name/$GIVEN_HOSTNAME:$PC')\" ]"
+    #mongosh --port $(($PORT+17)) --eval "sh.addShard('$name/$GIVEN_HOSTNAME:$PC')"
+    PC=$(($PORT+1000*$COUNTER))
+    echo "[ ++ Executing: mongosh --port $(($PORT)) --eval \"sh.addShard('$name/$GIVEN_HOSTNAME:$PC')\" ]"
+    mongosh --port $(($PORT)) --eval "sh.addShard('$name/$GIVEN_HOSTNAME:$PC')"
     let COUNTER+=1
   done
 
 sleep 5
-mongosh --port $(($PORT+17)) --eval "sh.status()"
+#mongosh --port $(($PORT+17)) --eval "sh.status()"
+mongosh --port $(($PORT)) --eval "sh.status()"
