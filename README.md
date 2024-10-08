@@ -1,6 +1,8 @@
 
 # MongoDB Sharding - Single Node Macbook - Quick Setup
 
+![img.png](img.png)
+
 There are times when I need to quickly set up a shard, or even a MongoDB cluster with 2 or 3 shards. This guide makes it simple and configurable to do so with a single command. No Docker is involved—just plain old MongoDB, specifically version 8, which is the latest at the time of writing.
 
 ## Overview
