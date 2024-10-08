@@ -463,7 +463,7 @@ mongosh --port $(($PORT+17)) --eval "sh.status()"
 Run the following command to create a MongoDB sharded cluster with 2 shards.
 
 ```bash
-mongo-shard-create 27000 2 sh1,sh2 | tee ~/out.log
+mongo-shard-create 27017 2 sh1,sh2 | tee ~/out.log
 ```
 
 Here is the output; however, we have omitted most of it due to its large size. We have included all the executed commands and the last part of the stdout.
